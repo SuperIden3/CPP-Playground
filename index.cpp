@@ -6,7 +6,6 @@
 #include <iomanip>
 using namespace std;
 
-// Enable debug messages when DEBUG is defined
 #ifdef DEBUG
 #define DEBUG_PRINT(fmt, ...) debug_printf(fmt, ##__VA_ARGS__)
 #else
@@ -60,11 +59,11 @@ void memory_printf(const void *ptr, size_t size) {
     const unsigned char *byte_ptr = static_cast<const unsigned char *>(ptr);
     for (size_t i = 0; i < size; ++i) {
         if (i % 16 == 0) {
-            std::cout << std::endl << static_cast<const void *>(byte_ptr + i) << ": "; // Print address
+            std::cout << '\n' << static_cast<const void *>(byte_ptr + i) << ": "; // Print address
         }
         std::cout << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(byte_ptr[i]) << " "; // Print byte value in hex
     }
-    std::cout << std::dec << std::endl; // Switch back to decimal
+    std::cout << std::dec << '\n'; // Switch back to decimal
 }
 
 /**
@@ -86,7 +85,8 @@ int main() {
     for (int i = 0; i < size; ++i) {
         numbers[i] = custom_rand();
     }
-    std::cout << std::fixed << std::setprecision(2) << numbers[0] << std::endl;
+    std::cout << std::fixed << std::setprecision(2) << numbers[0] << '\n';
 
+    std::cout << std::endl;
     return 0;
 }

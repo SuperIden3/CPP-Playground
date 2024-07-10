@@ -10,10 +10,10 @@ $(TARGET): $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-.PHONY run
+.PHONY: run
 run:
 	./$(TARGET)
 
-.PHONY clean
+.PHONY: clean
 clean:
 	rm -f $(TARGET) $(OBJS)
