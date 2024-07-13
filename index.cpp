@@ -80,13 +80,8 @@ double custom_rand() {
 int main() {
     std::srand(std::time(nullptr));
 
-    int size = 5;
-    std::unique_ptr<double[]> numbers(new double[size]);
-    for (int i = 0; i < size; ++i) {
-        numbers[i] = custom_rand();
-    }
-    std::cout << std::fixed << std::setprecision(2) << numbers[0] << '\n';
+    puts("Abort!");
+    abort();
 
-    std::cout << std::endl;
-    return 0;
+    return -1;
 }
