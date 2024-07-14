@@ -5,7 +5,12 @@
 #include <cstdarg>
 #include <memory>
 #include <iomanip>
+#include <vector>
+#include <string>
+#include <stdexcept>
+#include <sstream>
 using namespace std;
+
 
 // object-oriented
 /**
@@ -56,7 +61,12 @@ void dprintf(const char *format, ...) {
 
 /**
  * Frees a pointer.
- * @note `pointer` must be in this format: `(void**)&<pointer-name>`.
+```cpp
+double *pi = (double *)malloc(sizeof(double));
+*pi = 3.14;
+printf("PI: %.2f\n", pi);
+custom_free((void **) &pi);
+```
  */
 void custom_free(void **pointer) {
     if (pointer == NULL || *pointer == NULL) {
@@ -96,6 +106,33 @@ double custom_rand() {
     dprintf("DEBUG: Random number from 0 to 1: %.54lf.\n", rand2);
     return rand2;
 }
+/**
+ * Shorter `std::getline(std::cin, <std::string>)`.
+ */
+std::string ask(std::string question = "") {
+    std::string input;
+    std::cout << question;
+    if(std::getline(std::cin, input)) {
+        return input;
+    } else {
+        std::cerr << "Error getting input.\n";
+        exit(-1);
+    }
+}
+
+/**
+ * Convert `std::string` into different types using `std::istringstream`.
+ */
+template <typename T>
+T into(const std::string &input) {
+    std::istringstream stream(input);
+    T value;
+    stream >> value;
+    if (stream.fail()) {
+        throw std::runtime_error("Conversion failed.");
+    }
+    return value;
+}
 
 int main() {
     const std::clock_t start = std::clock();
@@ -104,13 +141,16 @@ int main() {
 
     // main
     printf("Name: ");
-    std::unique_ptr<std::string> name = std::make_unique<std::string>("");
+    std::unique_ptr<std::string> name = std::make_unique<std::string>();
     if(std::getline(std::cin, *name)) {
         std::cout << "Hello, " << *name << "!\n";
     } else {
         error_printf("Error reading input.\n");
         return -1;
     }
+    std::unique_ptr<int> age = std::make_unique<int>(0);
+    *age = into<int>(ask("Age: "));
+    std::cout << "You are " << *age << " years old.\n";
 
     std::cout << std::endl;
     const std::clock_t end = std::clock();
