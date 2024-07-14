@@ -6,15 +6,13 @@ OBJS = $(SRCS:.cpp=.o)
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
-	objdump -d $(TARGET) -Mintel > objdump.out
+	objdump -d -t -x -r $(TARGET) -Mintel > objdump.out
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-all: run clean
-
 .PHONY: run
-run:
+run: $(TARGET)
 	./$(TARGET)
 
 .PHONY: clean
