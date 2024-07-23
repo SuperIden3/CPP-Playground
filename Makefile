@@ -14,7 +14,10 @@ $(TARGET): $(OBJS)
 .PHONY: run
 run: $(TARGET)
 	./$(TARGET)
+.PHONY: debug
+debug: $(TARGET)
+	gdb -q -tui -ex "b _main" -ex "lay split" -ex "run" ./$(TARGET)
 
 .PHONY: clean
 clean:
-	rm -f $(TARGET) $(OBJS) core
+	rm -rf $(TARGET) objdump.out $(OBJS) core
