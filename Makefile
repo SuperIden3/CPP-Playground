@@ -16,7 +16,7 @@ run: $(TARGET)
 	./$(TARGET)
 .PHONY: debug
 debug: $(TARGET)
-	gdb -q -tui -ex "b _main" -ex "lay split" -ex "run" ./$(TARGET)
+	gdb -q -tui -ex "b _main" -ex "lay src" -ex "run" ./$(TARGET)
 
 .PHONY: clean
 clean:

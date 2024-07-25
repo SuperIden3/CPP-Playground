@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <cstring>
 #include <stdexcept>
 #include <sstream>
 using namespace std;
@@ -162,7 +163,7 @@ T into(const string &input)
  */
 typedef struct InputStringStream {
     istringstream iss;
-    InputStringStream(string input) : iss(input) {};
+    InputStringStream(const string& input) : iss(input) {}
     int set(const string& input) {
         if (input.empty()) {
             cerr << "Input string is empty." << endl;
@@ -183,11 +184,18 @@ typedef struct InputStringStream {
         if (bytes == string::npos) {
             bytes = iss.str().size() - iss.tellg();
         }
-        char *buffer = new char[bytes];
-        iss.read(buffer, bytes);
-        string data = string(buffer, iss.gcount());
-        delete[] buffer;
+        unique_ptr<char[]> buffer(new char[bytes]);
+        iss.read(buffer.get(), bytes);
+        string data = string(buffer.get(), iss.gcount());
         return data;
+    }
+    template <typename T>
+    InputStringStream& operator>>(T& value) {
+        if (!(iss >> value)) {
+            cerr << "Extraction from InputStringStream failed." << endl;
+            throw runtime_error("Extraction failed.");
+        }
+        return *this;
     }
 } ISS;
 
@@ -196,7 +204,7 @@ typedef struct InputStringStream {
  */
 typedef struct OutputStringStream {
     ostringstream oss;
-    OutputStringStream() : oss() {};
+    OutputStringStream() : oss() {}
     int write(const string& data) {
         if (data.empty()) {
             cerr << "Data string is empty." << endl;
@@ -207,49 +215,91 @@ typedef struct OutputStringStream {
     }
     string get(size_t bytes = string::npos) {
         const size_t size = oss.str().size();
-        if (bytes == string::npos) {
-            bytes = size;
-        }
-        if (bytes > size) {
+        if (bytes == string::npos || bytes > size) {
             bytes = size;
         }
         return oss.str().substr(0, bytes);
     }
+    template <typename T>
+    OutputStringStream& operator<<(const T& value) {
+        oss << value;
+        return *this;
+    }
 } OSS;
 
+/**
+ * Structure for `stringstream` acting as a TransformStream.
+ */
 typedef struct StringStream {
-    ISS& iss;
-    OSS& oss;
-    StringStream(ISS& input, OSS& output) : iss(input), oss(output) {}
+    InputStringStream iss;
+    OutputStringStream oss;
+    StringStream(const string& input = "") : iss(input), oss() {}
     int transform(function<string(const string&)> func, size_t bytes = string::npos) {
-        while(!iss.ended()) {
+        while (!iss.ended()) {
             string data = iss.read(bytes);
-            if(!data.empty()) {
+            if (!data.empty()) {
                 oss.write(func(data));
             }
         }
         return 0;
     }
+    template <typename T>
+    StringStream& operator<<(const T& value) {
+        oss << value;
+        return *this;
+    }
+    template <typename T>
+    StringStream& operator>>(T& value) {
+        try {
+            iss >> value;
+        } catch (const runtime_error& e) {
+            cerr << e.what() << endl;
+        }
+        return *this;
+    }
 } SS;
+
+template<typename T>
+/**
+ * Slicing for arrays.
+ */
+vector<T> slice(const T* arr, size_t start, size_t end) {
+    if (end > size(arr) || start > end) {
+        throw out_of_range("Invalid slice indices");
+    }
+    return vector<T>(arr + start, arr + end); 
+}
+
+template<typename T>
+/**
+ * Slicing for vectors.
+ */
+vector<T> slice(const vector<T>& vec, size_t start, size_t end) {
+    if (end > vec.size() || start > end) {
+        throw out_of_range("Invalid slice indices");
+    }
+    return vector<T>(vec.begin() + start, vec.begin() + end);
+}
 
 /**
  * The main function.
  */
-int _main()
+int _main(int &argc, char *argv[])
 {
-    ISS a("Hello World!");
-    cout << a.read() << endl;
+    ostringstream a;
+    a << "Hello World!" << endl;
+    cout << std::hex << a.str();
 
     return 0;
 }
-int main()
+int main(int argc, char *argv[])
 {
     const clock_t start = clock();
 
     srand(time(0));
 
     // main
-    const int code = _main();
+    const int code = _main(argc, argv);
 
     cout << endl;
     const clock_t end = clock();
