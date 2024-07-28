@@ -14,6 +14,7 @@ $(TARGET): $(OBJS)
 .PHONY: run
 run: $(TARGET)
 	./$(TARGET)
+
 .PHONY: debug
 debug: $(TARGET)
 	gdb -q -tui -ex "b _main" -ex "lay src" -ex "run" ./$(TARGET)

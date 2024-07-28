@@ -13,9 +13,9 @@
 #include <cstring>
 #include <stdexcept>
 #include <sstream>
+#include <fstream>
 using namespace std;
 
-// object-oriented
 /**
  * Creates a Node that can point to or be pointed by another Node, and even both.
  *
@@ -37,19 +37,18 @@ node_a = NULL;
 node_b = nullptr;
 ```
  */
-typedef struct Node
+struct Node
 {
     Node *prev;
     void *data;
     Node *next;
     Node(void *data) : prev(nullptr), data(data), next(nullptr) {}
-} Node;
+};
 
-// functions
 /**
  * For `printf`ing to `stderr`.
  */
-void error_printf(const char *format, ...)
+void eprintf(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -84,7 +83,7 @@ int custom_free(void **pointer)
     if (pointer == NULL || *pointer == NULL)
     {
         dprintf("%p is NULL.\n", pointer);
-        error_printf("ERROR:\n\t%p = 0x0;\tpointer is NULL.\n", pointer);
+        eprintf("ERROR:\n\t%p = 0x0;\tpointer is NULL.\n", pointer);
         return -1;
     }
     dprintf("DEBUG: Pointer %p will be freed...\n", pointer);
@@ -282,13 +281,53 @@ vector<T> slice(const vector<T>& vec, size_t start, size_t end) {
 }
 
 /**
+ * Constructs a new `File` object used for 
+ */
+class File {
+private:
+    string filename;
+    ifstream read_stream;
+    ofstream write_stream;
+
+public:
+    File(const char* name) : filename(name) {
+        write_stream.open(filename);
+        read_stream.open(filename);
+    }
+
+    ~File() {
+        if (read_stream.is_open()) {
+            read_stream.close();
+        }
+        if (write_stream.is_open()) {
+            write_stream.close();
+        }
+    }
+    friend ofstream& operator<<(File& file, const string& content) { 
+        if (!file.write_stream.is_open()) {
+            throw runtime_error("Could not open file for writing.");
+        }
+        file.write_stream << content;
+        return file.write_stream;
+    }
+
+    // Operator>>: Read from the file directly
+    friend ifstream& operator>>(File& file, string& value) {
+        if (!file.read_stream.is_open()) {
+            throw runtime_error("Could not open file for reading.");
+        }
+        file.read_stream >> value;
+        return file.read_stream;
+    }
+};
+
+/**
  * The main function.
  */
 int _main(int &argc, char *argv[])
 {
-    ostringstream a;
-    a << "Hello World!" << endl;
-    cout << std::hex << a.str();
+    File hello("hello.txt");
+    hello << "Hello World!" << endl;
 
     return 0;
 }
