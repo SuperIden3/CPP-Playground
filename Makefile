@@ -19,6 +19,10 @@ run: $(TARGET)
 debug: $(TARGET)
 	gdb -q -tui -ex "b _main" -ex "lay src" -ex "run" ./$(TARGET)
 
+.PHONY: time
+time: $(TARGET)
+	bash -c "time ./$(TARGET)"
+
 .PHONY: clean
 clean:
 	rm -rf $(TARGET) objdump.out $(OBJS) core
