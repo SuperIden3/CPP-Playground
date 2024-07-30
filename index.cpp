@@ -1,5 +1,6 @@
 // imports
 #include <iostream>
+#include <cassert>
 #include <cstdlib>
 #include <functional>
 #include <ctime>
@@ -14,6 +15,19 @@
 #include <stdexcept>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
+#include <deque>
+#include <list>
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
+#include <exception>
+#include <thread>
+#include <future>
+#include <chrono>
+#include <random>
+#include <variant>
 
 using namespace std;
 
@@ -43,6 +57,33 @@ struct Node {
   void * data;
   Node * next;
   Node(void * data): prev(nullptr), data(data), next(nullptr) {}
+};
+
+template <typename T, typename E>
+struct Result {
+public:
+  Result(const T& value) : result(value) {}
+  Result(const E& error) : result(error) {}
+  bool is_ok() {
+    return holds_alternative<T>(result);
+  }
+  bool is_err() {
+    return holds_alternative<E>(result);
+  }
+  T unwrap() {
+    if (is_ok()) {
+      return get<T>(result);
+    }
+    throw runtime_error("Result is an error value.");
+  }
+  E unwrap_err() {
+    if (is_err()) {
+      return get<E>(result);
+    }
+    throw runtime_error("Result is an okay value.");
+  }
+private:
+  variant<T, E> result;
 };
 
 /**
@@ -356,12 +397,8 @@ template < typename T >
  * The main function.
  */
 int _main(int & argc, char * argv[]) {
-  if (expect(custom_rand()).greater_than(0.5)) {
-    cout << "true";
-  } else {
-    cout << "false";
-  }
-  cout << endl;
+  Expectation<double> num(custom_rand());
+  assert(num.greater_than(0.5));
 
   return 0;
 }

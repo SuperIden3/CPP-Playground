@@ -13,6 +13,7 @@ $(TARGET): $(OBJS)
 
 .PHONY: run
 run: $(TARGET)
+	ulimit -c unlimited
 	./$(TARGET)
 
 .PHONY: debug
@@ -21,6 +22,7 @@ debug: $(TARGET)
 
 .PHONY: time
 time: $(TARGET)
+	ulimit -c unlimited
 	bash -c "time ./$(TARGET)"
 
 .PHONY: clean
