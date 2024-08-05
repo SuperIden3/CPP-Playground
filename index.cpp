@@ -28,6 +28,15 @@
 #include <chrono>
 #include <random>
 #include <variant>
+#include <queue>
+#include <bitset>
+#include <iterator>
+#include <stack>
+#include <utility>
+#include <limits>
+#include <climits>
+#include <bits/stdc++.h>
+#include <any>
 
 using namespace std;
 
@@ -53,43 +62,110 @@ node_b = nullptr;
 ```
  */
 struct Node {
-  Node * prev;
-  void * data;
-  Node * next;
-  Node(void * data): prev(nullptr), data(data), next(nullptr) {}
+  Node *prev;
+  any data;
+  Node *next;
+  Node(any data): prev(nullptr), data(data), next(nullptr) {}
 };
 
-template <typename T, typename E>
-struct Result {
+template <typename T, typename E, typename = std::enable_if_t<!std::is_same_v<T, E>>>
+/**
+Rust-inspired structure.
+Contains either an okay value or an error value.
+
+```cpp
+Result<int, std::string> a = Result::Ok(10); // okay-y
+Result<int, std::string> b = Result::Err("uh oh"); // error-y
+
+Result<std::string, std::string> c = Result::Ok("hello"); // okay-y
+Result<std::string, std::string> d = Result::Err("hello"); // error-y
+```
+ */
+class Result {
 public:
-  Result(const T& value) : result(value) {}
-  Result(const E& error) : result(error) {}
-  bool is_ok() {
-    return holds_alternative<T>(result);
+  static Result<T, E> Ok(T value) {
+    return Result(std::in_place_index<0>, value);
   }
-  bool is_err() {
-    return holds_alternative<E>(result);
+  static Result<T, E> Err(E error) {
+    return Result(std::in_place_index<1>, error);
   }
-  T unwrap() {
+  bool is_ok() const {
+    return std::holds_alternative<T>(data);
+  }
+  bool is_err() const {
+    return std::holds_alternative<E>(data);
+  }
+  T unwrap() const {
     if (is_ok()) {
-      return get<T>(result);
+      return std::get<T>(data);
     }
-    throw runtime_error("Result is an error value.");
+    throw std::runtime_error("Called unwrap on an Err value");
   }
-  E unwrap_err() {
+  E unwrap_err() const {
     if (is_err()) {
-      return get<E>(result);
+      return std::get<E>(data);
     }
-    throw runtime_error("Result is an okay value.");
+    throw std::runtime_error("Called unwrap_err on an Ok value");
   }
 private:
-  variant<T, E> result;
+  std::variant<T, E> data;
+  template <typename U>
+  Result(U &&value) : data(std::forward<U>(value)) {}
+};
+
+/**
+Rust-inspired structure.
+Either contains a value or does not.
+
+```cpp
+Option<int> a = Option::Some(10); // some-y
+Option<int> b = Option::None(); // none-y
+```
+ */
+template<typename T>
+class Option {
+public:
+  Option() : has_value(false) {}
+  Option(T value) : value(value), has_value(true) {}
+  Option(const Option &other) : value(other.value), has_value(other.has_value) {}
+  Option(Option &&other) : value(std::move(other.value)), has_value(other.has_value) {}
+  Option& operator=(const Option &other) {
+    value = other.value;
+    has_value = other.has_value;
+    return *this;
+  }
+  Option& operator=(Option &&other) {
+    value = std::move(other.value);
+    has_value = other.has_value;
+    return *this;
+  }
+  static Option<T> Some(T value) {
+    return Option(value);
+  }
+  static Option<T> None() {
+    return Option();
+  }
+  bool is_some() const {
+    return has_value;
+  }
+  bool is_none() const {
+    return !has_value;
+  }
+  T unwrap() const {
+    if (has_value) {
+      return value;
+    }
+    throw std::runtime_error("Called unwrap on a None value");
+  }
+private:
+  T value;
+  bool has_value;
 };
 
 /**
  * For `printf`ing to `stderr`.
  */
-void eprintf(const char * format, ...) {
+void eprintf(const char *format, ...) {
   va_list args;
   va_start(args, format);
   vfprintf(stderr, format, args);
@@ -99,7 +175,7 @@ void eprintf(const char * format, ...) {
 /**
  * Prints debug messages when `-DDEBUG` is added.
  */
-void dprintf(const char * format, ...) {
+void dprintf(const char *format, ...) {
   #ifdef DEBUG
   va_list args;
   va_start(args, format);
@@ -114,18 +190,18 @@ void dprintf(const char * format, ...) {
 double *pi = (double *)malloc(sizeof(double));
 *pi = 3.14;
 printf("PI: %.2f\n", pi);
-custom_free((void **) &pi);
+custom_free((void **)&pi);
 ```
  */
-int custom_free(void ** pointer) {
-  if (pointer == NULL || * pointer == NULL) {
+int custom_free(void **pointer) {
+  if (pointer == NULL || *pointer == NULL) {
     dprintf("%p is NULL.\n", pointer);
     eprintf("ERROR:\n\t%p = 0x0;\tpointer is NULL.\n", pointer);
     return -1;
   }
   dprintf("DEBUG: Pointer %p will be freed...\n", pointer);
-  free( * pointer);
-  * pointer = NULL;
+  free(*pointer);
+  *pointer = NULL;
   dprintf("DEBUG: Value of %p is freed and is set to NULL.\n", pointer);
   return 0;
 }
@@ -135,16 +211,13 @@ int custom_free(void ** pointer) {
  * @param ptr Pointer that points to a set of hex values.
  * @param size Number of bytes to print.
  */
-void memory_printf(const void * ptr, size_t size) {
-  const unsigned char * byte_ptr = static_cast <
-    const unsigned char * > (ptr);
+void memory_printf(const void *ptr, size_t size) {
+  const unsigned char *byte_ptr = static_cast<const unsigned char *>(ptr);
   for (size_t i = 0; i < size; ++i) {
     if (i % 16 == 0) {
-      cout << '\n' <<
-        static_cast <
-        const void * > (byte_ptr + i) << ": ";
+      cout << '\n' << hex << setfill('0') << setw(8) << static_cast <const void*> (byte_ptr + i) << ": ";
     }
-    cout << hex << setfill('0') << setw(2) << static_cast < int > (byte_ptr[i]) << " ";
+    cout << hex << setfill('0') << setw(2) << static_cast <int> (byte_ptr[i]) << " ";
   }
   cout << dec << '\n';
 }
@@ -175,8 +248,8 @@ string ask(string question = "") {
 /**
  * Convert `string` into different types using `istringstream`.
  */
-template < typename T >
-  T into(const string & input) {
+template <typename T>
+  T into(const string &input) {
     istringstream stream(input);
     T value;
     stream >> value;
@@ -191,8 +264,8 @@ template < typename T >
  */
 typedef struct InputStringStream {
   istringstream iss;
-  InputStringStream(const string & input): iss(input) {}
-  int set(const string & input) {
+  InputStringStream(const string &input): iss(input) {}
+  int set(const string &input) {
     if (input.empty()) {
       cerr << "Input string is empty." << endl;
       return -1;
@@ -212,18 +285,18 @@ typedef struct InputStringStream {
     if (bytes == string::npos) {
       bytes = iss.str().size() - iss.tellg();
     }
-    unique_ptr < char[] > buffer(new char[bytes]);
+    unique_ptr<char[]> buffer(new char[bytes]);
     iss.read(buffer.get(), bytes);
     string data = string(buffer.get(), iss.gcount());
     return data;
   }
-  template < typename T >
-    InputStringStream & operator >> (T & value) {
+  template <typename T>
+    InputStringStream& operator >> (T &value) {
       if (!(iss >> value)) {
         cerr << "Extraction from InputStringStream failed." << endl;
         throw runtime_error("Extraction failed.");
       }
-      return * this;
+      return *this;
     }
 }
 ISS;
@@ -234,7 +307,7 @@ ISS;
 typedef struct OutputStringStream {
   ostringstream oss;
   OutputStringStream(): oss() {}
-  int write(const string & data) {
+  int write(const string &data) {
     if (data.empty()) {
       cerr << "Data string is empty." << endl;
       return -1;
@@ -249,8 +322,8 @@ typedef struct OutputStringStream {
     }
     return oss.str().substr(0, bytes);
   }
-  template < typename T >
-    OutputStringStream & operator << (const T & value) {
+  template <typename T>
+    OutputStringStream& operator << (const T &value) {
       oss << value;
       return * this;
     }
@@ -263,8 +336,8 @@ OSS;
 typedef struct StringStream {
   InputStringStream iss;
   OutputStringStream oss;
-  StringStream(const string & input = ""): iss(input), oss() {}
-  int transform(function < string(const string & ) > func, size_t bytes = string::npos) {
+  StringStream(const string &input = ""): iss(input), oss() {}
+  int transform(function <string(const string&)> func, size_t bytes = string::npos) {
     while (!iss.ended()) {
       string data = iss.read(bytes);
       if (!data.empty()) {
@@ -273,13 +346,13 @@ typedef struct StringStream {
     }
     return 0;
   }
-  template < typename T >
-    StringStream & operator << (const T & value) {
+  template <typename T>
+    StringStream& operator << (const T &value) {
       oss << value;
-      return * this;
+      return *this;
     }
-  template < typename T >
-    StringStream & operator >> (T & value) {
+  template <typename T>
+    StringStream& operator >> (T &value) {
       try {
         iss >> value;
       } catch (const runtime_error & e) {
@@ -287,29 +360,28 @@ typedef struct StringStream {
       }
       return * this;
     }
-}
-SS;
+} SS;
 
-template < typename T >
+template <typename T>
   /**
    * Slicing for arrays.
    */
-  vector < T > slice(const T * arr, size_t start, size_t end) {
+  vector<T> slice(const T *arr, size_t start, size_t end) {
     if (end > size(arr) || start > end) {
       throw out_of_range("Invalid slice indices");
     }
-    return vector < T > (arr + start, arr + end);
+    return vector<T>(arr + start, arr + end);
   }
 
-template < typename T >
+template <typename T>
   /**
    * Slicing for vectors.
    */
-  vector < T > slice(const vector < T > & vec, size_t start, size_t end) {
+  vector<T> slice(const vector<T> &vec, size_t start, size_t end) {
     if (end > vec.size() || start > end) {
       throw out_of_range("Invalid slice indices");
     }
-    return vector < T > (vec.begin() + start, vec.begin() + end);
+    return vector <T>(vec.begin() + start, vec.begin() + end);
   }
 
 /**
@@ -320,7 +392,7 @@ class File {
   ifstream read_stream;
   ofstream write_stream;
 
-  public: File(const char * name): filename(name) {
+  public: File(const char *name): filename(name) {
       write_stream.open(filename);
       read_stream.open(filename);
     }
@@ -332,7 +404,7 @@ class File {
         write_stream.close();
       }
     }
-  friend ofstream & operator << (File & file,
+  friend ofstream & operator << (File &file,
     const string & content) {
     if (!file.write_stream.is_open()) {
       throw runtime_error("Could not open file for writing.");
@@ -340,7 +412,7 @@ class File {
     file.write_stream << content;
     return file.write_stream;
   }
-  friend ifstream & operator >> (File & file, string & value) {
+  friend ifstream & operator >> (File &file, string &value) {
     if (!file.read_stream.is_open()) {
       throw runtime_error("Could not open file for reading.");
     }
@@ -349,32 +421,32 @@ class File {
   }
 };
 
-template < typename T >
+template <typename T>
   /**
    * Creates an instance with methods like `jest` to create tests.
    */
   class Expectation {
     private: T value;
-    public: Expectation(const T & val): value(val) {}
-    bool is(const T & expected) const {
-      if (value == expected) {
-        return true;
-      }
-      return false;
+    public: Expectation(const T &val): value(val) {}
+    bool eq(const T & expected) const {
+      return value == expected;
     }
     bool nully() {
-      if (value == NULL) {
-        return true;
-      }
-      return false;
+      return value == (T)NULL;
     }
-    bool greater_than(const T & val) {
+    bool gt(const T & val) {
       return value > val;
     }
-    bool less_than(const T & val) {
+    bool lt(const T & val) {
       return value < val;
     }
-    bool contains(const T & val) {
+    bool ge(const T & val) {
+      return value >= val;
+    }
+    bool le(const T & val) {
+      return value <= val;
+    }
+    bool has(const T & val) {
       for (T item: value) {
         if (item == val) {
           return true;
@@ -382,14 +454,17 @@ template < typename T >
       }
       return false;
     }
+    T get() const {
+      return value;
+    }
   };
 
-template < typename T >
+template <typename T>
   /**
    * Shorthand way of creating an `Expectation` object, like in `jest`.
    */
-  Expectation < T > expect(const T & value) {
-    Expectation < T > expectation(value);
+  Expectation <T> expect(const T & value) {
+    Expectation <T> expectation(value);
     return expectation;
   }
 
@@ -397,8 +472,9 @@ template < typename T >
  * The main function.
  */
 int _main(int & argc, char * argv[]) {
-  Expectation<double> num(custom_rand());
-  assert(num.greater_than(0.5));
+  Option<int> a = Option<int>::None();
+  a = Option<int>::Some(10);
+  cout << a.unwrap() << endl;
 
   return 0;
 }

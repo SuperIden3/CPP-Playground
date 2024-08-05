@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -g
+CXXFLAGS = -Wall -g -std=c++17
 TARGET = index
 SRCS = $(TARGET).cpp
 OBJS = $(SRCS:.cpp=.o)
