@@ -1,5 +1,9 @@
 CXX = g++
+DDEBUG ?= 0
 CXXFLAGS = -Wall -g -std=c++17
+ifeq ($(DDEBUG), 1)
+	CXXFLAGS += -DDEBUG
+endif
 TARGET = index
 SRCS = $(TARGET).cpp
 OBJS = $(SRCS:.cpp=.o)

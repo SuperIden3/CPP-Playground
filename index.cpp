@@ -41,6 +41,28 @@
 using namespace std;
 
 /**
+ * For `printf`ing to `stderr`.
+ */
+void eprintf(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+}
+
+/**
+ * Prints debug messages when `-DDEBUG` is added.
+ */
+void _dprintf(const char *format, ...) {
+#ifdef DEBUG
+  va_list args;
+  va_start(args, format);
+  vfprintf(stdout, format, args);
+  va_end(args);
+#endif
+}
+
+/**
  * Creates a Node that can point to or be pointed by another Node, and even both.
  *
 ```cpp
@@ -65,10 +87,11 @@ struct Node {
   Node *prev;
   any data;
   Node *next;
-  Node(any data): prev(nullptr), data(data), next(nullptr) {}
+  Node(any data): prev(nullptr), data(data), next(nullptr) {
+    _dprintf("DEBUG: Node created with data %p.\n", data);
+  }
 };
 
-template <typename T, typename E, typename = std::enable_if_t<!std::is_same_v<T, E>>>
 /**
 Rust-inspired structure.
 Contains either an okay value or an error value.
@@ -81,36 +104,49 @@ Result<std::string, std::string> c = Result::Ok("hello"); // okay-y
 Result<std::string, std::string> d = Result::Err("hello"); // error-y
 ```
  */
+template <typename T, typename E, typename = std::enable_if_t<!std::is_same_v<T, E>>>
 class Result {
 public:
   static Result<T, E> Ok(T value) {
+    _dprintf("DEBUG: Ok created with value %p.\n", value);
     return Result(std::in_place_index<0>, value);
   }
   static Result<T, E> Err(E error) {
+    _dprintf("DEBUG: Err created with error %p.\n", error);
     return Result(std::in_place_index<1>, error);
   }
   bool is_ok() const {
+    _dprintf("DEBUG: is_ok called.\n");
     return std::holds_alternative<T>(data);
   }
   bool is_err() const {
+    _dprintf("DEBUG: is_err called.\n");
     return std::holds_alternative<E>(data);
   }
   T unwrap() const {
+    _dprintf("DEBUG: unwrap called.\n");
     if (is_ok()) {
+      _dprintf("DEBUG: unwrap returned %p.\n", std::get<T>(data));
       return std::get<T>(data);
     }
+    _dprintf("DEBUG: unwrap threw an error: Err = %p.\n", std::get<E>(data));
     throw std::runtime_error("Called unwrap on an Err value");
   }
   E unwrap_err() const {
+    _dprintf("DEBUG: unwrap_err called.\n");
     if (is_err()) {
+      _dprintf("DEBUG: unwrap_err returned %p.\n", std::get<E>(data));
       return std::get<E>(data);
     }
+    _dprintf("DEBUG: unwrap_err threw an error: Ok = %p.\n", std::get<T>(data));
     throw std::runtime_error("Called unwrap_err on an Ok value");
   }
 private:
   std::variant<T, E> data;
   template <typename U>
-  Result(U &&value) : data(std::forward<U>(value)) {}
+  Result(U &&value) : data(std::forward<U>(value)) {
+    _dprintf("DEBUG: Result created with value %p.\n", value);
+  }
 };
 
 /**
@@ -163,28 +199,6 @@ private:
 };
 
 /**
- * For `printf`ing to `stderr`.
- */
-void eprintf(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-}
-
-/**
- * Prints debug messages when `-DDEBUG` is added.
- */
-void dprintf(const char *format, ...) {
-  #ifdef DEBUG
-  va_list args;
-  va_start(args, format);
-  vfprintf(stdout, format, args);
-  va_end(args);
-  #endif
-}
-
-/**
  * Frees a pointer.
 ```cpp
 double *pi = (double *)malloc(sizeof(double));
@@ -195,14 +209,14 @@ custom_free((void **)&pi);
  */
 int custom_free(void **pointer) {
   if (pointer == NULL || *pointer == NULL) {
-    dprintf("%p is NULL.\n", pointer);
+    _dprintf("%p is NULL.\n", pointer);
     eprintf("ERROR:\n\t%p = 0x0;\tpointer is NULL.\n", pointer);
     return -1;
   }
-  dprintf("DEBUG: Pointer %p will be freed...\n", pointer);
+  _dprintf("DEBUG: Pointer %p will be freed...\n", pointer);
   free(*pointer);
   *pointer = NULL;
-  dprintf("DEBUG: Value of %p is freed and is set to NULL.\n", pointer);
+  _dprintf("DEBUG: Value of %p is freed and is set to NULL.\n", pointer);
   return 0;
 }
 
@@ -213,6 +227,7 @@ int custom_free(void **pointer) {
  */
 void memory_printf(const void *ptr, size_t size) {
   const unsigned char *byte_ptr = static_cast<const unsigned char *>(ptr);
+  cout << hex << setfill('0') << setw(8) << static_cast <const void*> (byte_ptr) << ": ";
   for (size_t i = 0; i < size; ++i) {
     if (i % 16 == 0) {
       cout << '\n' << hex << setfill('0') << setw(8) << static_cast <const void*> (byte_ptr + i) << ": ";
@@ -227,9 +242,9 @@ void memory_printf(const void *ptr, size_t size) {
  */
 double custom_rand() {
   int rand1 = rand();
-  dprintf("DEBUG: Randomly generated number: %i.\n", rand1);
+  _dprintf("DEBUG: Randomly generated number: %i.\n", rand1);
   double rand2 = static_cast < double > (rand1) / static_cast < double > (RAND_MAX);
-  dprintf("DEBUG: Random number from 0 to 1: %.54lf.\n", rand2);
+  _dprintf("DEBUG: Random number from 0 to 1: %.54lf.\n", rand2);
   return rand2;
 }
 /**
@@ -238,9 +253,13 @@ double custom_rand() {
 string ask(string question = "") {
   string input;
   cout << question;
+  fflush(stdout);
+  _dprintf("DEBUG: Asked %s and managed to flush stdout.\n", question.c_str());
   if (getline(cin, input)) {
+    _dprintf("DEBUG: Got input: %s.\n", input.c_str());
     return input;
   } else {
+    _dprintf("DEBUG: Error getting input.\n");
     throw runtime_error("Error getting input.");
   }
 }
@@ -249,15 +268,18 @@ string ask(string question = "") {
  * Convert `string` into different types using `istringstream`.
  */
 template <typename T>
-  T into(const string &input) {
-    istringstream stream(input);
-    T value;
-    stream >> value;
-    if (stream.fail()) {
-      throw runtime_error("Conversion failed.");
-    }
-    return value;
+T into(const string &input) {
+  istringstream stream(input);
+  T value;
+  _dprintf("DEBUG: Converting %s into %s.\n", input.c_str(), typeid(value).name());
+  stream >> value;
+  if (stream.fail()) {
+    _dprintf("DEBUG: Conversion failed.\n");
+    throw runtime_error("Conversion failed.");
   }
+  _dprintf("DEBUG: Conversion successful.\n");
+  return value;
+}
 
 /**
  * Structure for `istringstream`.
@@ -267,7 +289,7 @@ typedef struct InputStringStream {
   InputStringStream(const string &input): iss(input) {}
   int set(const string &input) {
     if (input.empty()) {
-      cerr << "Input string is empty." << endl;
+      cerr << "Input string is empty.\n";
       return -1;
     }
     iss.str(input);
@@ -293,7 +315,7 @@ typedef struct InputStringStream {
   template <typename T>
     InputStringStream& operator >> (T &value) {
       if (!(iss >> value)) {
-        cerr << "Extraction from InputStringStream failed." << endl;
+        cerr << "Extraction from InputStringStream failed.\n";
         throw runtime_error("Extraction failed.");
       }
       return *this;
@@ -309,7 +331,7 @@ typedef struct OutputStringStream {
   OutputStringStream(): oss() {}
   int write(const string &data) {
     if (data.empty()) {
-      cerr << "Data string is empty." << endl;
+      cerr << "Data string is empty.\n";
       return -1;
     }
     oss << data;
@@ -356,7 +378,7 @@ typedef struct StringStream {
       try {
         iss >> value;
       } catch (const runtime_error & e) {
-        cerr << e.what() << endl;
+        cerr << e.what() << '\n';
       }
       return * this;
     }
@@ -370,6 +392,7 @@ template <typename T>
     if (end > size(arr) || start > end) {
       throw out_of_range("Invalid slice indices");
     }
+    _dprintf("DEBUG: Slicing array from %i to %i.\n", start, end);
     return vector<T>(arr + start, arr + end);
   }
 
@@ -381,6 +404,7 @@ template <typename T>
     if (end > vec.size() || start > end) {
       throw out_of_range("Invalid slice indices");
     }
+    _dprintf("DEBUG: Slicing vector from %i to %i.\n", start, end);
     return vector <T>(vec.begin() + start, vec.begin() + end);
   }
 
@@ -395,6 +419,7 @@ class File {
   public: File(const char *name): filename(name) {
       write_stream.open(filename);
       read_stream.open(filename);
+      _dprintf("DEBUG: File %s created.\n", filename.c_str());
     }
     ~File() {
       if (read_stream.is_open()) {
@@ -403,6 +428,7 @@ class File {
       if (write_stream.is_open()) {
         write_stream.close();
       }
+      _dprintf("DEBUG: File %s closed.\n", filename.c_str());
     }
   friend ofstream & operator << (File &file,
     const string & content) {
@@ -410,6 +436,7 @@ class File {
       throw runtime_error("Could not open file for writing.");
     }
     file.write_stream << content;
+    _dprintf("DEBUG: Wrote %s to file %s.\n", content.c_str(), file.filename.c_str());
     return file.write_stream;
   }
   friend ifstream & operator >> (File &file, string &value) {
@@ -417,6 +444,7 @@ class File {
       throw runtime_error("Could not open file for reading.");
     }
     file.read_stream >> value;
+    _dprintf("DEBUG: Read %s from file %s.\n", value.c_str(), file.filename.c_str());
     return file.read_stream;
   }
 };
@@ -427,7 +455,9 @@ template <typename T>
    */
   class Expectation {
     private: T value;
-    public: Expectation(const T &val): value(val) {}
+    public: Expectation(const T &val): value(val) {
+      _dprintf("DEBUG: Expectation created with value %p.\n", value);
+    }
     bool eq(const T & expected) const {
       return value == expected;
     }
@@ -469,12 +499,34 @@ template <typename T>
   }
 
 /**
+ * This function calculates the hash value of a given string.
+ * The hash value is calculated using the formula: `hash = (hash * prime + char) % modulo` where hash is the current hash value, prime is a large prime number,
+ * char is the current character of the string, and modulo is a large number.
+ * The default values for prime and modulo are 1000000007 and 1000000000000000007 respectively.
+ *
+ * @param str The string to hash.
+ * @param prime The prime number to use. Default value is 1000000007.
+ * @param modulo The modulo number to use. Default value is 1000000000000000007.
+ * @returns The hash of the string.
+ */
+unsigned long long _hash(const char *str, unsigned long long prime = 1000000007, unsigned long long modulo = 1000000000000000007) {
+  unsigned long long _hash = 0;
+  for (; *str; str++) {
+    _dprintf("Old hash: %llu\n", _hash);
+    _dprintf("Character: %c, Code point: %d\n", *str, *str);
+    _hash = (_hash * prime + *str) % modulo;
+    _dprintf("New hash: %llu\n", _hash);
+  }
+  return _hash;
+}
+
+/**
  * The main function.
  */
 int _main(int & argc, char * argv[]) {
-  Option<int> a = Option<int>::None();
-  a = Option<int>::Some(10);
-  cout << a.unwrap() << endl;
+  char a[1 << 20];
+  scanf("%s", a);
+  cout << _hash(a) << endl;
 
   return 0;
 }
